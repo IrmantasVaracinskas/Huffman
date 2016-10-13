@@ -25,15 +25,32 @@ public class Huffman {
      * @param args the command line arguments
      */
     public static void main(String[] args) throws FileNotFoundException {
-        HuffmanTrie ht = new HuffmanTrie("test2.txt", (byte)8);
-        ht.getWordFrequencies();
+        HuffmanTrie ht = new HuffmanTrie((byte)8);
+        ht.getWordFrequencies("test2.txt");
+        ht.head = ht.buildHuffmanTrie();
+        ht.writeTrieToFile("trie.txt");
+        ht.readTrieFromFile("trie.txt");
+        Node node = ht.head;
+        printNode(node);
+        /*HuffmanTrie.printMap(ht.values);
         
-        HuffmanTrie.printMap(ht.values);
-        
-        System.out.println("\n\n\n\n");
-        HuffmanTrie.printMap(sortByValues(ht.values));
+        System.out.println("\n\n\n");
+        HuffmanTrie.printMap(sortByValues(ht.values));*/
     }
     
+    
+    static void printNode(Node node)
+    {
+        if(node != null)
+        {
+            if(node.left == null && node.right == null)
+                System.out.println("value: " + node.bytes);
+            if(node.left != null)
+                printNode(node.left);
+            if(node.right != null)
+                printNode(node.right);
+        }
+    }
     
     private static HashMap sortByValues(HashMap map) { 
        List list = new LinkedList(map.entrySet());
