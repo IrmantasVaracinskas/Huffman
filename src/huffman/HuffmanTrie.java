@@ -51,19 +51,10 @@ public class HuffmanTrie {
             Map.Entry pair = (Map.Entry)it.next();
             nodes.add(new Node((short)(int)pair.getKey(), (int)pair.getValue(), null, null));
         }
-        /*nodes.sort(new Comparator()
-        {
-             public int compare(Object o1, Object o2) {
-                return (int)((Node)o1).frequency - (int)((Node)o2).frequency;
-             }
-        });*/
-        
-        /*nodes.forEach((node) -> System.out.println("value = " + node.bytes
-                + "  frequency = " + node.frequency));*/
-        
-        
         Node temp1, temp2;
-        while(nodes.size() != 1)
+        
+        while(nodes.size() != 1)// do this until only one element is left tree
+            // and that one element should be head
         {
             nodes.sort(new Comparator()
                 {
@@ -86,10 +77,22 @@ public class HuffmanTrie {
     void getWordFrequencies(String filename) throws FileNotFoundException
     {
         reader = new BitReader(filename);
-        int temp;
+        int temp;// used to read values into
+        int t;// if file has 8 bits and you read in blocks of 7, then
+        // result should be integer made of 7 bits and integer made of 1 bit
+        // so t is used to implement that.
         while(!eof(reader))
         {
-            temp = reader.readBits(byteLength);
+            t = (reader.length() * 8) - reader.readBitsCount;// get amount of 
+            // unread bits
+            if(t < byteLength && t >= 0)// if there are fewer unread bits than
+                // size of blocks that usualy are read then read only all unread bits
+            {
+                temp = reader.readBits(t);
+                reader.readBitsCount++;// increment so it would stop reading
+            }
+            else
+                temp = reader.readBits(byteLength);
             readBitCount += byteLength;
             if(values.containsKey(temp))
             {
@@ -97,8 +100,10 @@ public class HuffmanTrie {
             }
             else
             {
-                if(readBitCount != reader.length() * 8 + byteLength)
-                    values.put(temp, 1);
+                //                                                      TODO:
+                // this almost works but fails when file lenghth * 8 is not divisable by byteLength
+                // (what I mean by "fails" is that values are incorrect, for example -1
+                values.put(temp, 1);
             }
         }
     }
@@ -144,7 +149,7 @@ public class HuffmanTrie {
     
     private boolean eof(BitReader reader)
     {
-        return reader.readBitsCount > reader.length() * 8;
+        return reader.readBitsCount >= reader.length() * 8;
     }
     
     static public void printMap(Map map)
