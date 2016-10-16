@@ -5,6 +5,7 @@
  */
 package huffman;
 
+import java.io.EOFException;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -15,22 +16,31 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
  * @author Irmis
  */
 public class HuffmanTrie {
+    static final boolean DEBUG = true;
+    static private int encodingValue = 0;
+    static private int encodingValueLength = 0;
+    static private int diff = 0;
+    
     HashMap<Integer, Integer> values;
     
     long readBitCount = 0;
     private BitWriter writer;
     private BitReader reader;
+    int lettersCount;
     
     // first 6 bit positions are for length in which text will be devided into
     public byte byteLength;
     public Node head;
     public String filename;
+    public static ArrayList<Encoding> valuesToEncodeBy = new ArrayList<Encoding>();
     
     HuffmanTrie(byte byteLength)
     {
@@ -45,11 +55,14 @@ public class HuffmanTrie {
         values = sortByValues();
         Iterator it = values.entrySet().iterator();
         
+        
+        if(DEBUG)
+            System.out.println("Huffman trie building started");
         // put all values into ArrayList because
         // it is easier for me to work with
         while (it.hasNext()) {
             Map.Entry pair = (Map.Entry)it.next();
-            nodes.add(new Node((short)(int)pair.getKey(), (int)pair.getValue(), null, null));
+            nodes.add(new Node((int)pair.getKey(), (int)pair.getValue(), null, null));
         }
         Node temp1, temp2;
         
@@ -65,17 +78,21 @@ public class HuffmanTrie {
             
             temp1 = nodes.get(0);
             temp2 = nodes.get(1);
-            nodes.set(0, new Node((short)-1,
+            nodes.set(0, new Node(-1,
                     temp1.frequency + temp2.frequency,
                     temp1, temp2));
             nodes.remove(1);
             
         }
+        if(DEBUG)
+            System.out.println("Huffman trie building finished");
         return nodes.get(0);
     }
     
     void getWordFrequencies(String filename) throws FileNotFoundException
     {
+        if(DEBUG)
+            System.out.println("Retreiving work frequency started");
         reader = new BitReader(filename);
         int temp;// used to read values into
         int t;// if file has 8 bits and you read in blocks of 7, then
@@ -106,21 +123,21 @@ public class HuffmanTrie {
                 values.put(temp, 1);
             }
         }
+        if(DEBUG)
+            System.out.println("Retreiving work frequency finished");
     }
     
-    void writeTrieToFile(String filename)
+    private void writeTrieToFile()
     {
-        writer = new BitWriter(filename);
         writer.writeBits(byteLength, 6);
+        writer.writeBits(reader.length(), 30);
         head.writeToFile(writer, byteLength);
-        
-        writer.flush();
     }
     
-    void readTrieFromFile(String filename) throws FileNotFoundException
+    void readTrieFromFile() throws FileNotFoundException
     {
-        reader = new BitReader(filename);
         byteLength = (byte)reader.readBits(6);
+        lettersCount = reader.readBits(30);
         head = readNode(reader);
     }
     
@@ -132,7 +149,7 @@ public class HuffmanTrie {
             if(reader.readBit() == 1)
             {
                 readBitCount += byteLength;
-                return new Node((short)reader.readBits(byteLength), 0, null, null);
+                return new Node(reader.readBits(byteLength), 0, null, null);
             }
             else
             {
@@ -157,10 +174,149 @@ public class HuffmanTrie {
         Iterator it = map.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry pair = (Map.Entry)it.next();
-            System.out.println(pair.getKey() + " = " + pair.getValue());
+            System.out.println("value: " + pair.getKey() + " frequency: " + pair.getValue());
         }
     }
     
+    public void encode(String encodeFrom, String encodeTo)
+    {
+        if(DEBUG)
+            System.out.println("Encoding started");
+        try {
+            writer = new BitWriter(encodeTo);
+            reader = new BitReader(encodeFrom);
+            writeTrieToFile();
+            Encoding tempEncoding;
+            int index;
+            int temp;// used to read values into
+            int t;// if file has 8 bits and you read in blocks of 7, then
+            // result should be integer made of 7 bits and integer made of 1 bit
+            // so t is used to implement that.
+            while(!eof(reader))
+            {
+                t = (reader.length() * 8) - reader.readBitsCount;// get amount of 
+                // unread bits
+                if(t < byteLength && t >= 0)// if there are fewer unread bits than
+                    // size of blocks that usualy are read then read only all unread bits
+                {
+                    temp = reader.readBits(t);
+                    index = Collections.binarySearch(valuesToEncodeBy, new Encoding(0, 0, temp), new Comparator<Encoding>(){
+                        public int compare(Encoding e1, Encoding e2){
+                            return e2.value - e1.value;
+                        }
+                    });
+                    tempEncoding = valuesToEncodeBy.get(index);
+                    //writer.writeBits(tempEncoding.encodeValue, tempEncoding.encodeValueLength);
+                    writer.writeBits(prepareToPrint(tempEncoding.encodeValue, tempEncoding.encodeValueLength),
+                            tempEncoding.encodeValueLength);
+                    reader.readBitsCount++;// increment so it would stop reading
+                }
+                else
+                {
+                    temp = reader.readBits(byteLength);
+                    index = Collections.binarySearch(valuesToEncodeBy, new Encoding(0, 0, temp), new Comparator<Encoding>(){
+                        public int compare(Encoding e1, Encoding e2){
+                            return e2.value - e1.value;
+                        }
+                    });
+                    tempEncoding = valuesToEncodeBy.get(index);
+                    writer.writeBits(prepareToPrint(tempEncoding.encodeValue, tempEncoding.encodeValueLength),
+                            tempEncoding.encodeValueLength);
+                }
+                readBitCount += byteLength;
+            }
+            writer.flush();
+        } catch (FileNotFoundException ex) {
+            System.out.println("No file foudnd to encode from, file name = " + encodeFrom);
+        }
+        if(DEBUG)
+            System.out.println("Encoding finished");
+        
+    }
+    
+    private int prepareToPrint(int value, int length)
+    {
+        int preparedValue = 0;
+        
+        for(int i = 0; i < length; i++)
+        {
+            if(getNthBit(value, i) > 0)
+            {
+                preparedValue += (int)Math.pow(2, length - 1 - i);
+            }
+        }
+        
+        return preparedValue;
+    }
+    private int getNthBit(int value, int n)
+    {
+        return value & (int)Math.pow(2, n);
+    }
+    
+    public void decode(String decodeFrom, String decodeTo)
+    {
+        if(DEBUG)
+            System.out.println("Decoding started");
+        Node node = head;
+        int writtenBits = 0;
+        int temp;
+        int t;
+        try {
+            writer = new BitWriter(decodeTo);
+            reader = new BitReader(decodeFrom);
+            readTrieFromFile();
+            while(!eof(reader) && writtenBits <= lettersCount * 8)
+            {
+                t = lettersCount * 8 - writtenBits;
+                temp = reader.readBit();
+                if(temp == 0)
+                {
+                    if(node.left != null)
+                    {
+                        node = node.left;
+                        if(node.left == null)
+                        {
+                            if(t < byteLength && t > 0)
+                                writer.writeBits(node.bytes, t);
+                            else
+                                writer.writeBits(node.bytes, byteLength);
+                            node = head;
+                            writtenBits += byteLength;
+                        }
+                    } else
+                    {
+                        if(t < byteLength && t > 0)
+                                writer.writeBits(node.bytes, t);
+                            else
+                                writer.writeBits(node.bytes, byteLength);
+                            node = head;
+                            writtenBits += byteLength;
+                    }
+                }
+                else
+                {
+                    if(node.right != null)
+                    {
+                        node = node.right;
+                        if(node.left == null)
+                        {
+                            if(t < byteLength && t > 0)
+                                writer.writeBits(node.bytes, t);
+                            else
+                                writer.writeBits(node.bytes, byteLength);
+                            node = head;
+                            writtenBits += byteLength;
+                        }
+                    }
+                }
+            }
+            writer.flush();
+        } catch (FileNotFoundException ex) {
+            System.out.println("File not found to decode from, file name is " + decodeFrom);
+        }
+        if(DEBUG)
+            System.out.println("Decoding finished");
+    }
     
     private HashMap sortByValues() { 
         HashMap map = values;
@@ -180,5 +336,31 @@ public class HuffmanTrie {
                sortedHashMap.put(entry.getKey(), entry.getValue());
         } 
         return sortedHashMap;
-  }
+    }
+    
+    public static void prepareToEncode(Node node)
+    {
+        if(node.left != null && node.right != null)
+        {
+            encodingValueLength++;
+            if (diff == 0)
+                diff = 1;
+            else
+                diff *= 2;
+            prepareToEncode(node.left);
+            
+            encodingValue += diff;
+            prepareToEncode(node.right);
+            encodingValue -= diff;
+            encodingValueLength--;
+            if (diff == 1)
+                diff = 0;
+            else
+                diff /= 2;
+        } 
+        else {
+            valuesToEncodeBy.add(new Encoding(encodingValue, encodingValueLength, node.bytes));
+            
+        }
+    }
 }

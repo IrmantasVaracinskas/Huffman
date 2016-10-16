@@ -10,11 +10,11 @@ package huffman;
  * @author Irmis
  */
 public class Node {
-    public short bytes; //stores up to two bytes
+    public int bytes; //stores up to two bytes
     public int frequency;
     public Node left, right;
     
-    Node(short bytes, int freq, Node left, Node right)
+    Node(int bytes, int freq, Node left, Node right)
     {
         this.bytes = bytes;
         this.frequency = freq;
