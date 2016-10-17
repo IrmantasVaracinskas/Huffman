@@ -27,7 +27,7 @@ public class Node {
         return left == null && right == null;
     }
     
-    public void writeToFile(BitWriter writer, byte byteLength)
+    public void writeToFile(BitWriter writer, int byteLength)
     {
         if (isLeaf())
         {
