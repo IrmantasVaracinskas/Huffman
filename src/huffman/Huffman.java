@@ -17,10 +17,8 @@ public class Huffman {
      * @param args the command line arguments
      */
     public static void main(String[] args) throws FileNotFoundException {
-        HuffmanTrie ht = new HuffmanTrie(12);
-        
-        ht.encode("test.txt", "encoded.txt");
-        
-        ht.decode("encoded.txt", "decoded.jpg");
+        HuffmanTrie ht = new HuffmanTrie(8);
+        ht.encode("test.jpg", "encoded.txt");
+        //ht.decode("encoded.txt", "decoded.jpg");
     }
 }

@@ -54,7 +54,7 @@ public class HuffmanTrie {
         Node temp1, temp2;
         
         if(DEBUG)
-            System.out.println("Huffman trie building started");
+            System.out.println("    Huffman trie building started");
         // put all values into ArrayList because
         // it is easier for me to work with
         while (it.hasNext()) {
@@ -81,14 +81,14 @@ public class HuffmanTrie {
             
         }
         if(DEBUG)
-            System.out.println("Huffman trie building finished");
+            System.out.println("    Huffman trie building finished");
         return nodes.get(0);
     }
     
     private void getWordFrequencies(String filename) throws FileNotFoundException
     {
         if(DEBUG)
-            System.out.println("Retreiving work frequency started");
+            System.out.println("    Retreiving work frequency started");
         reader = new BitReader(filename);
         int temp;// used to read values into
         int t;// if file has 8 bits and you read in blocks of 7, then
@@ -120,7 +120,7 @@ public class HuffmanTrie {
             }
         }
         if(DEBUG)
-            System.out.println("Retreiving work frequency finished");
+            System.out.println("    Retreiving work frequency finished");
     }
     
     private void writeTrieToFile()
@@ -174,18 +174,30 @@ public class HuffmanTrie {
         int t;// if file has 8 bits and you read in blocks of 7, then
         // result should be integer made of 7 bits and integer made of 1 bit
         // so t is used to implement that.
-        if(DEBUG)
-        {
-            System.out.println("Encoding started");
-            startTime = System.currentTimeMillis();
-        }
+        
         try {
+            if(DEBUG)
+            {
+                System.out.println("Preparing for encoding started");
+                startTime = System.currentTimeMillis();
+            }
             setupEncoding(encodeFrom);
-            
             writer = new BitWriter(encodeTo);
             reader = new BitReader(encodeFrom);
             writeTrieToFile();
-            
+            if(DEBUG)
+            {
+                long endTime = System.currentTimeMillis();
+                System.out.println("Preparing for encoding ended");
+                System.out.println("Preparations finished in " + (endTime - startTime)
+                 + "milliseconds");
+                
+            }
+            if(DEBUG)
+            {
+                System.out.println("Encoding started");
+                startTime = System.currentTimeMillis();
+            }
             while(!eof(reader))
             {
                 t = (reader.length() * 8) - reader.readBitsCount;// get amount of 
@@ -197,6 +209,8 @@ public class HuffmanTrie {
                     tempEncoding = getValueToEncodeBy(temp);
                     writer.writeBits(prepareToPrint(tempEncoding.encodeValue, tempEncoding.encodeValueLength),
                             tempEncoding.encodeValueLength);
+                    /*writer.writeBits(tempEncoding.encodeValue,
+                            tempEncoding.encodeValueLength);*/
                     reader.readBitsCount++;// increment so it would stop reading
                 }
                 else
@@ -205,12 +219,14 @@ public class HuffmanTrie {
                     tempEncoding = getValueToEncodeBy(temp);
                     writer.writeBits(prepareToPrint(tempEncoding.encodeValue, tempEncoding.encodeValueLength),
                             tempEncoding.encodeValueLength);
+                    /*writer.writeBits(tempEncoding.encodeValue,
+                            tempEncoding.encodeValueLength);*/
                 }
                 readBitCount += byteLength;
             }
             writer.flush();
         } catch (FileNotFoundException ex) {
-            System.out.println("No file foudnd to encode from, file name = " + encodeFrom);
+            System.out.println("No file found to encode from, file name = " + encodeFrom);
         }
         if(DEBUG)
         {
@@ -245,11 +261,10 @@ public class HuffmanTrie {
                             return e2.value - e1.value;
                         }
                     });
-        
         return valuesToEncodeBy.get(index);
     }
     
-    private int prepareToPrint(int value, int length)
+    static private int prepareToPrint(int value, int length)
     {
         int preparedValue = 0;
         
@@ -264,7 +279,7 @@ public class HuffmanTrie {
         return preparedValue;
     }
     
-    private int getNthBit(int value, int n)
+    static private int getNthBit(int value, int n)
     {
         return value & (int)Math.pow(2, n);
     }
@@ -383,8 +398,9 @@ public class HuffmanTrie {
                 diff /= 2;
         } 
         else {
+            //valuesToEncodeBy.add(new Encoding(prepareToPrint(encodingValue, encodingValueLength), encodingValueLength, node.bytes));
             valuesToEncodeBy.add(new Encoding(encodingValue, encodingValueLength, node.bytes));
-            
+
         }
     }
 }
